@@ -21,7 +21,7 @@ import uk.ac.bris.cs.gamekit.graph.Graph;
 //----------------------------------------------------------------------------------------------------------------------
 //----------------------------------------------------------------------------------------------------------------------
 
-public class ScotlandYardModel implements ScotlandYardGame {
+public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 
 	private List<Boolean> xRounds;
 	private Graph<Integer, Transport> xGraph;
@@ -117,29 +117,52 @@ public class ScotlandYardModel implements ScotlandYardGame {
 	public ScotlandYardModel(List<Boolean> rounds, Graph<Integer, Transport> graph,
 			PlayerConfiguration mrX, PlayerConfiguration firstDetective,
 			PlayerConfiguration... restOfTheDetectives) {
-		// TODO
-		validateGraph(graph);
-		validateRounds(rounds);
-		ArrayList<PlayerConfiguration> configurations = configurePlayers(mrX, firstDetective, restOfTheDetectives);
-		for(PlayerConfiguration configuration : configurations){
-			xPlayers.add(new ScotlandYardPlayer(configuration.player,
-											   configuration.colour,
-											   configuration.location,
-											   configuration.tickets));
-		}
 
-	}
+			validateGraph(graph);
+			validateRounds(rounds);
+			ArrayList<PlayerConfiguration> configurations = configurePlayers(mrX, firstDetective, restOfTheDetectives);
+				for(PlayerConfiguration configuration : configurations){
+				xPlayers.add(new ScotlandYardPlayer(configuration.player,
+												   configuration.colour,
+												   configuration.location,
+												   configuration.tickets));
+				}
+
+			}
 
 	@Override
 	public void startRotate() {
-		// TODO
-		throw new RuntimeException("Implement me");
+		if(isGameOver()) throw new IllegalStateException("Game is over");
+		ScotlandYardPlayer player = getxPlayerbyColour(getCurrentPlayer());
+		player.player().makeMove(this, player.location(), getvalidMoves(player), this);
+	}
+
+	private Set<Move> getvalidMoves (ScotlandYardPlayer player) {
+		Set<Move> moves = new HashSet<>();
+		ArrayList<Integer> takenLocations = getUnavailableLocations(); //gives me list of locations that are taken by the detectives
+		Collection<Edge<Integer, Transport>> possibleMoves = getGraph().getEdgesFrom(getGraph().getNode(player.location())); //give me edges for all possible moves from the current player's location
+
+		for(Edge<Integer, Transport> possibleMove : possibleMoves) {
+			possibleMove.data(); //TODO check if detective has ticket for this transport
+			possibleMove.destination(); //TODO check if any detective.location corresponds to here
+			}
+
+		return null;
 	}
 
 	@Override
-	public Collection<Spectator> getSpectators() {
-		// TODO
-		throw new RuntimeException("Implement me");
+	public void accept(Move move){
+
+	}
+
+	private ArrayList<Integer> getUnavailableLocations (){
+			ArrayList<Integer> locations = new ArrayList<>();
+			for(ScotlandYardPlayer player : getxPlayers()){
+				if(player.isDetective()){
+					locations.add(player.location());
+				}
+			}
+			return locations;
 	}
 
 	@Override
@@ -205,7 +228,7 @@ public class ScotlandYardModel implements ScotlandYardGame {
 
 	@Override
 	public Graph<Integer, Transport> getGraph() {
-		return new uk.ac.bris.cs.gamekit.graph.ImmutableGraph(xGraph);
+		return new ImmutableGraph<>(xGraph);
 	}
 
 	@Override
@@ -216,6 +239,12 @@ public class ScotlandYardModel implements ScotlandYardGame {
 
 	@Override
 	public void unregisterSpectator(Spectator spectator) {
+		// TODO
+		throw new RuntimeException("Implement me");
+	}
+
+	@Override
+	public Collection<Spectator> getSpectators() {
 		// TODO
 		throw new RuntimeException("Implement me");
 	}
