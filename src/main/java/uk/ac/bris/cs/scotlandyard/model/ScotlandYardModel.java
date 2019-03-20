@@ -143,11 +143,14 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 		Collection<Edge<Integer, Transport>> possibleMoves = getGraph().getEdgesFrom(getGraph().getNode(player.location())); //give me edges for all possible moves from the current player's location
 
 		for(Edge<Integer, Transport> possibleMove : possibleMoves) {
-			possibleMove.data(); //TODO check if detective has ticket for this transport
-			possibleMove.destination(); //TODO check if any detective.location corresponds to here
+			Integer destination = possibleMove.destination().value();
+			Ticket ticket = fromTransport(possibleMove.data());
+			if(!takenLocations.contains(destination) && player.hasTickets(ticket)){
+				moves.add(new TicketMove(player.colour(), ticket, destination));
 			}
+		}
 
-		return null;
+		return moves;
 	}
 
 	@Override
