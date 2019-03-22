@@ -12,6 +12,8 @@ import static uk.ac.bris.cs.scotlandyard.model.Ticket.*;
 
 import java.util.*;
 import java.util.function.Consumer;
+
+import org.checkerframework.checker.nullness.qual.RequiresNonNull;
 import uk.ac.bris.cs.gamekit.graph.Edge;
 import uk.ac.bris.cs.gamekit.graph.Graph;
 import uk.ac.bris.cs.gamekit.graph.ImmutableGraph;
@@ -27,7 +29,8 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 	private Graph<Integer, Transport> xGraph;
 	private ArrayList<ScotlandYardPlayer> xPlayers = new ArrayList<>();
 	private int xCurrentRound = NOT_STARTED;
-	private int xCurrentPlayer = 0; //increment whenever we change the player
+	private int xAllPlayers	= 0;
+	private int xCurrentPlayer = 0; //increment whenever we change the player, initially 0 for mrX
 	private int xLastMrXlocation = 0;
 
 
@@ -118,26 +121,34 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 			PlayerConfiguration mrX, PlayerConfiguration firstDetective,
 			PlayerConfiguration... restOfTheDetectives) {
 
-			validateGraph(graph);
-			validateRounds(rounds);
-			ArrayList<PlayerConfiguration> configurations = configurePlayers(mrX, firstDetective, restOfTheDetectives);
+				validateGraph(graph);
+				validateRounds(rounds);
+				ArrayList<PlayerConfiguration> configurations = configurePlayers(mrX, firstDetective, restOfTheDetectives);
 				for(PlayerConfiguration configuration : configurations){
 				xPlayers.add(new ScotlandYardPlayer(configuration.player,
 												   configuration.colour,
 												   configuration.location,
 												   configuration.tickets));
+				this.xAllPlayers += 1;
 				}
 
 			}
 
-	@Override
-	public void startRotate() {
-		if(isGameOver()) throw new IllegalStateException("Game is over");
-		ScotlandYardPlayer player = getxPlayerbyColour(getCurrentPlayer());
-		player.player().makeMove(this, player.location(), getvalidMoves(player), this);
+	private void setNextPlayer(){
+		xCurrentPlayer += 1;
+		if(xCurrentPlayer == xAllPlayers){
+			xCurrentPlayer = 0; //when all players made move the round is over so i reset the current player to mrX
+		}
+		else startRotate();
 	}
 
-	private Set<Move> getvalidMoves (ScotlandYardPlayer player) {
+	@Override
+	public void startRotate() {
+		ScotlandYardPlayer player = getxPlayerbyColour(getCurrentPlayer());
+		player.player().makeMove(this, player.location(), getValidMoves(player), this);
+	}
+
+	private Set<Move> getValidMoves (ScotlandYardPlayer player) {
 		Set<Move> moves = new HashSet<>();
 		ArrayList<Integer> takenLocations = getUnavailableLocations(); //gives me list of locations that are taken by the detectives
 		Collection<Edge<Integer, Transport>> possibleMoves = getGraph().getEdgesFrom(getGraph().getNode(player.location())); //give me edges for all possible moves from the current player's location
@@ -145,16 +156,28 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 		for(Edge<Integer, Transport> possibleMove : possibleMoves) {
 			Integer destination = possibleMove.destination().value();
 			Ticket ticket = fromTransport(possibleMove.data());
-			if(!takenLocations.contains(destination) && player.hasTickets(ticket)){
-				moves.add(new TicketMove(player.colour(), ticket, destination));
+			if(!takenLocations.contains(destination)){
+				if(player.hasTickets(ticket, 1)) moves.add(new TicketMove(player.colour(), ticket, destination));
+				if(player.hasTickets(SECRET, 1)) moves.add(new TicketMove(player.colour(), SECRET, destination));
+				if(player.hasTickets(DOUBLE, 1)){
+					
+				}
 			}
-		}
 
+		}
 		return moves;
 	}
 
 	@Override
 	public void accept(Move move){
+		requireNonNull(move);
+		ScotlandYardPlayer p = getxPlayerbyColour(move.colour());
+		if(getValidMoves(p).contains(move)) makeMove(p, move); //move requested must be in the set of valid moves
+		else throw new IllegalArgumentException("Move in not possible");
+		setNextPlayer();
+	}
+
+	private void makeMove(ScotlandYardPlayer player, Move move){
 
 	}
 
