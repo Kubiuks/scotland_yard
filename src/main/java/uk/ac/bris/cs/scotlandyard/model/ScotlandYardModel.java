@@ -122,7 +122,7 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 	@Override
 	public void startRotate() {
 		ScotlandYardPlayer player = getxPlayerbyColour(getCurrentPlayer());
-		player.player().makeMove(this, player.location(), getValidMoves(player), this);
+		player.player().makeMove(this, player.location(), getValidMoves(player), this);//needs accept method, which is below
 	}
 
 	private Set<Move> getValidMoves (ScotlandYardPlayer player) {
@@ -137,23 +137,29 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 				if(player.hasTickets(SECRET, 1)) moves.add(new TicketMove(player.colour(), SECRET, destination));//only for SECRET
 			}
 		}
-/*		if(xCurrentRound < xRounds.size() - 1 && player.hasTickets(DOUBLE, 1)){//DOUBLE move cannot be played if its the last round(notice that current round will increment after mrX makes the move)
+		Set<Move> doubleMoves = new HashSet<>();//we need new set for doubleMoves as there was some merging problem idk why
+		if(xCurrentRound < xRounds.size() - 1 && player.hasTickets(DOUBLE, 1)){//DOUBLE move cannot be played if its the last round(notice that current round will increment after mrX makes the move)
 			for(Move move : moves) {
 				TicketMove firstMove = (TicketMove)move;
 				Collection<Edge<Integer, Transport>> possibleSecondMoves = getGraph().getEdgesFrom(getGraph().getNode(firstMove.destination()));
-				for(Edge<Integer, Transport> possibleSecondMove : possibleMoves) {
+				for(Edge<Integer, Transport> possibleSecondMove : possibleSecondMoves) {
 					Integer secondDestination = possibleSecondMove.destination().value();
 					Ticket secondTicket = fromTransport(possibleSecondMove.data());
 					if(!takenLocations.contains(secondDestination) || secondDestination == player.location()) {
-						if(secondTicket == firstMove.ticket())
-							if(player.hasTickets(secondTicket, 2)) moves.add(new DoubleMove(player.colour(), firstMove, new TicketMove(player.colour(), secondTicket, secondDestination)));
-							else;
-						else if(player.hasTickets(secondTicket, 1)) moves.add(new DoubleMove(player.colour(), firstMove, new TicketMove(player.colour(), secondTicket, secondDestination)));
+						if(secondTicket == firstMove.ticket()){
+							if(player.hasTickets(secondTicket, 2)) doubleMoves.add(new DoubleMove(player.colour(), firstMove, new TicketMove(player.colour(), secondTicket, secondDestination)));
+						}
+						else if(player.hasTickets(secondTicket, 1)) doubleMoves.add(new DoubleMove(player.colour(), firstMove, new TicketMove(player.colour(), secondTicket, secondDestination)));
+						if(player.hasTickets(SECRET, 2)) doubleMoves.add(new DoubleMove(player.colour(), firstMove, new TicketMove(player.colour(), SECRET, secondDestination)));
 					}
 				}
 			}
 		}
-*/		return Collections.unmodifiableSet(moves);
+		moves.addAll(doubleMoves);//combining normal moves with doubleMoves
+		if(moves.isEmpty()){//if there are no moves we have to add a PassMove
+			moves.add(new PassMove(player.colour()));
+		}
+		return Collections.unmodifiableSet(moves);
 	}
 
 	@Override
