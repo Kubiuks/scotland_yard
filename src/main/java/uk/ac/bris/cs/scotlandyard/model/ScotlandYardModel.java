@@ -34,21 +34,6 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 	private int xLastMrXlocation = 0;
 
 
-
-	private ArrayList<ScotlandYardPlayer> getxPlayers() {
-		return xPlayers;
-	}
-
-	private ScotlandYardPlayer getxPlayerbyColour(Colour colour){
-		for(ScotlandYardPlayer player : getxPlayers()) {
-			if (player.colour() == colour){
-				return player;
-			}
-		}
-		return null;
-	}
-
-
 	private void validateRounds(List<Boolean> rounds) {
 		requireNonNull(rounds);
 
@@ -124,7 +109,7 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 				validateGraph(graph);
 				validateRounds(rounds);
 				ArrayList<PlayerConfiguration> configurations = configurePlayers(mrX, firstDetective, restOfTheDetectives);
-				for(PlayerConfiguration configuration : configurations){
+				for(PlayerConfiguration configuration : configurations){//uses the given configurations to create real ScotlandYardPlayers
 				xPlayers.add(new ScotlandYardPlayer(configuration.player,
 												   configuration.colour,
 												   configuration.location,
@@ -134,14 +119,6 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 
 			}
 
-	private void setNextPlayer(){
-		xCurrentPlayer += 1;
-		if(xCurrentPlayer == xAllPlayers){
-			xCurrentPlayer = 0; //when all players made move the round is over so i reset the current player to mrX
-		}
-		else startRotate();
-	}
-
 	@Override
 	public void startRotate() {
 		ScotlandYardPlayer player = getxPlayerbyColour(getCurrentPlayer());
@@ -150,22 +127,33 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 
 	private Set<Move> getValidMoves (ScotlandYardPlayer player) {
 		Set<Move> moves = new HashSet<>();
-		ArrayList<Integer> takenLocations = getUnavailableLocations(); //gives me list of locations that are taken by the detectives
-		Collection<Edge<Integer, Transport>> possibleMoves = getGraph().getEdgesFrom(getGraph().getNode(player.location())); //give me edges for all possible moves from the current player's location
-
+		ArrayList<Integer> takenLocations = getUnavailableLocations(); //gives me a list of locations that are taken by the detectives
+		Collection<Edge<Integer, Transport>> possibleMoves = getGraph().getEdgesFrom(getGraph().getNode(player.location())); //gives me edges for all possible moves from the current player's location
 		for(Edge<Integer, Transport> possibleMove : possibleMoves) {
 			Integer destination = possibleMove.destination().value();
 			Ticket ticket = fromTransport(possibleMove.data());
-			if(!takenLocations.contains(destination)){
-				if(player.hasTickets(ticket, 1)) moves.add(new TicketMove(player.colour(), ticket, destination));
-				if(player.hasTickets(SECRET, 1)) moves.add(new TicketMove(player.colour(), SECRET, destination));
-				if(player.hasTickets(DOUBLE, 1)){
-					
+			if(!takenLocations.contains(destination)){ //first check if the destination is not already taken by a detective
+				if(player.hasTickets(ticket, 1)) moves.add(new TicketMove(player.colour(), ticket, destination));//only for normal tickets i.e. TAXI, BUS, UNDERGROUND
+				if(player.hasTickets(SECRET, 1)) moves.add(new TicketMove(player.colour(), SECRET, destination));//only for SECRET
+			}
+		}
+/*		if(xCurrentRound < xRounds.size() - 1 && player.hasTickets(DOUBLE, 1)){//DOUBLE move cannot be played if its the last round(notice that current round will increment after mrX makes the move)
+			for(Move move : moves) {
+				TicketMove firstMove = (TicketMove)move;
+				Collection<Edge<Integer, Transport>> possibleSecondMoves = getGraph().getEdgesFrom(getGraph().getNode(firstMove.destination()));
+				for(Edge<Integer, Transport> possibleSecondMove : possibleMoves) {
+					Integer secondDestination = possibleSecondMove.destination().value();
+					Ticket secondTicket = fromTransport(possibleSecondMove.data());
+					if(!takenLocations.contains(secondDestination) || secondDestination == player.location()) {
+						if(secondTicket == firstMove.ticket())
+							if(player.hasTickets(secondTicket, 2)) moves.add(new DoubleMove(player.colour(), firstMove, new TicketMove(player.colour(), secondTicket, secondDestination)));
+							else;
+						else if(player.hasTickets(secondTicket, 1)) moves.add(new DoubleMove(player.colour(), firstMove, new TicketMove(player.colour(), secondTicket, secondDestination)));
+					}
 				}
 			}
-
 		}
-		return moves;
+*/		return Collections.unmodifiableSet(moves);
 	}
 
 	@Override
@@ -175,6 +163,14 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 		if(getValidMoves(p).contains(move)) makeMove(p, move); //move requested must be in the set of valid moves
 		else throw new IllegalArgumentException("Move in not possible");
 		setNextPlayer();
+	}
+
+	private void setNextPlayer(){
+		xCurrentPlayer += 1;
+		if(xCurrentPlayer == xAllPlayers){
+			xCurrentPlayer = 0; //when all players made move the round is over so reset the current player to mrX
+		}
+		else startRotate();
 	}
 
 	private void makeMove(ScotlandYardPlayer player, Move move){
@@ -236,6 +232,20 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 		// TODO
 		return false;
 	}
+
+	private ArrayList<ScotlandYardPlayer> getxPlayers() {
+		return xPlayers;
+	}
+
+	private ScotlandYardPlayer getxPlayerbyColour(Colour colour){
+		for(ScotlandYardPlayer player : getxPlayers()) {
+			if (player.colour() == colour){
+				return player;
+			}
+		}
+		return null;
+	}
+
 
 	@Override
 	public Colour getCurrentPlayer() {
