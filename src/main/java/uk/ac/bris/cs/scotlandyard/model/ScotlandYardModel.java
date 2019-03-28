@@ -31,26 +31,21 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 	private int xCurrentRound = NOT_STARTED;
 	private int xAllPlayers	= 0;
 	private int xCurrentPlayer = 0; //increment whenever we change the player, initially 0 for mrX
-	private int xLastMrXlocation = 0;
+	private int xLastKnownMrXlocation = 0;
+	private int xTrueMrXlocation = 0;
+	private Set<Colour> xWinningPlayers = new HashSet<>();
+	private Set<Colour> xDetectives = new HashSet<>();
 
 
 	private void validateRounds(List<Boolean> rounds) {
 		requireNonNull(rounds);
-
-		if (rounds.isEmpty()) {
-			throw new IllegalArgumentException("Empty rounds");
-		}
-
+		if (rounds.isEmpty()) throw new IllegalArgumentException("Empty rounds");
 		this.xRounds = rounds;
 	}
 
 	private void validateGraph(Graph<Integer, Transport> graph) {
 		requireNonNull(graph);
-
-		if (graph.isEmpty()) {
-			throw new IllegalArgumentException("Empty graph");
-		}
-
+		if (graph.isEmpty()) throw new IllegalArgumentException("Empty graph");
 		this.xGraph = graph;
 	}
 
@@ -115,19 +110,22 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 												   configuration.location,
 												   configuration.tickets));
 				this.xAllPlayers += 1;
+				if(!(configuration.colour == BLACK)) this.xDetectives.add(configuration.colour);
+				else xTrueMrXlocation = configuration.location;
 				}
 
 			}
 
 	@Override
 	public void startRotate() {
+		//if(isGameOver()) throw new IllegalStateException("game is over");
 		ScotlandYardPlayer player = getxPlayerbyColour(getCurrentPlayer());
 		player.player().makeMove(this, player.location(), getValidMoves(player), this);//needs accept method, which is below
 	}
 
 	private Set<Move> getValidMoves (ScotlandYardPlayer player) {
 		Set<Move> moves = new HashSet<>();
-		ArrayList<Integer> takenLocations = getUnavailableLocations(); //gives me a list of locations that are taken by the detectives
+		ArrayList<Integer> takenLocations = getTakenLocations();//gives me a list of locations that are taken by the detectives
 		Collection<Edge<Integer, Transport>> possibleMoves = getGraph().getEdgesFrom(getGraph().getNode(player.location())); //gives me edges for all possible moves from the current player's location
 		for(Edge<Integer, Transport> possibleMove : possibleMoves) {
 			Integer destination = possibleMove.destination().value();
@@ -166,8 +164,11 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 	public void accept(Move move){
 		requireNonNull(move);
 		ScotlandYardPlayer p = getxPlayerbyColour(move.colour());
-		if(getValidMoves(p).contains(move)) makeMove(p, move); //move requested must be in the set of valid moves
-		else throw new IllegalArgumentException("Move in not possible");
+		if(p.isMrX() && xCurrentRound > 0){
+			p.location(xTrueMrXlocation);
+		}
+		if(getValidMoves(p).contains(move)) makexMove(p, move); //move requested must be in the set of valid moves
+		else throw new IllegalArgumentException("Move in not valid");
 		setNextPlayer();
 	}
 
@@ -179,11 +180,64 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 		else startRotate();
 	}
 
-	private void makeMove(ScotlandYardPlayer player, Move move){
 
+	private void makexMove(ScotlandYardPlayer player, Move move){
+		MoveVisitor visitor = new MoveVisitor() {
+			@Override
+			public void visit(PassMove move) {
+
+			}
+
+			@Override
+			public void visit(TicketMove move) {
+				player.removeTicket(move.ticket());
+				if(player.isDetective()) {
+					getxPlayerbyColour(BLACK).addTicket(move.ticket());
+					player.location(move.destination());
+					isGameOver();
+				}
+				else {
+					xCurrentRound += 1;
+					if(getRounds().get(xCurrentRound -1)) { //if true it means its the reveal round
+															//-1 because Rounds count start with 0, so our first round is 0th round in getRounds
+						player.location(move.destination());
+						xLastKnownMrXlocation = player.location();
+					}
+					else {
+						player.location(xLastKnownMrXlocation);
+					}
+					xTrueMrXlocation = move.destination();
+				}
+			}
+
+			@Override
+			public void visit(DoubleMove move) {
+				int firstDestination = move.firstMove().destination();
+				int finalDestination = move.finalDestination();
+
+				xCurrentRound += 2;
+				player.removeTicket(move.firstMove().ticket());
+				player.removeTicket(move.secondMove().ticket());
+				player.removeTicket(DOUBLE);
+				if(getRounds().get(xCurrentRound - 2)){//first move is reveal
+						player.location(firstDestination);
+						xLastKnownMrXlocation = firstDestination;
+				}
+				if(getRounds().get(xCurrentRound - 1)){//second move is reveal
+						player.location(finalDestination);
+						xLastKnownMrXlocation = finalDestination;
+
+				}
+				else { //both rounds are hidden
+						player.location(xLastKnownMrXlocation);
+				}
+				xTrueMrXlocation = finalDestination;
+			}
+		};
+		move.visit(visitor);
 	}
 
-	private ArrayList<Integer> getUnavailableLocations (){
+	private ArrayList<Integer> getTakenLocations (){
 			ArrayList<Integer> locations = new ArrayList<>();
 			for(ScotlandYardPlayer player : getxPlayers()){
 				if(player.isDetective()){
@@ -191,6 +245,54 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 				}
 			}
 			return locations;
+	}
+
+	@Override
+	public boolean isGameOver() {
+		if(isMrXcaptured() || isMrXcornered()) xWinningPlayers = xDetectives;
+		if(areDetectivesTicketless() || allDetectivesDontHaveValidMoves() || noRoundsLeft()) xWinningPlayers.add(BLACK);
+		System.out.println(xWinningPlayers);
+		return !xWinningPlayers.isEmpty();
+	}
+
+	private boolean isMrXcaptured(){
+		for(ScotlandYardPlayer p : getxPlayers()){
+			if(p.isDetective() && p.location() == xTrueMrXlocation) return true;
+		}
+		return false;
+	}
+
+	private boolean areDetectivesTicketless(){
+		for(ScotlandYardPlayer p : getxPlayers()){
+			if(p.isDetective()){
+				if(p.hasTickets(BUS) || p.hasTickets(UNDERGROUND) || p.hasTickets(TAXI)) return false;
+			}
+
+		}
+		return true;
+	}
+
+	private boolean allDetectivesDontHaveValidMoves(){
+		boolean ok = true;
+		for(ScotlandYardPlayer p : getxPlayers()) {
+			if(p.isDetective()) {
+				ok &= getValidMoves(p).contains(new PassMove(p.colour()));
+			}
+		}
+		return ok;
+	}
+
+	private boolean noRoundsLeft() {
+		return false;
+	}
+
+	private boolean isMrXcornered(){
+		return false;
+	}
+
+	@Override
+	public Set<Colour> getWinningPlayers() {
+		return Collections.unmodifiableSet(xWinningPlayers);
 	}
 
 	@Override
@@ -202,28 +304,13 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 		return Collections.unmodifiableList(cPlayers);
 	}
 
-	@Override
-	public Set<Colour> getWinningPlayers() {
-		   Set<Colour> xWinningPlayers = new HashSet<>();
-		   if(isGameOver()){
-		   	 //TODO
-		   }
-		   return Collections.unmodifiableSet(xWinningPlayers);
-	}
 
 	@Override
 	public Optional<Integer> getPlayerLocation(Colour colour) {
 		   ScotlandYardPlayer player = getxPlayerbyColour(colour);
-		   if(player == null) { return Optional.empty(); }
-		   Integer location = player.location();
-		   if(player.isMrX()){
-		   	//TODO
-			   if(getCurrentRound() == NOT_STARTED){
-			   	return Optional.of(0);
-			   }
-
-		   }
-		   return Optional.of(location);
+		   if(player == null) return Optional.empty();
+		   if(player.isMrX()) return Optional.of(xLastKnownMrXlocation);
+		   return Optional.of(player.location());
 	}
 
 	@Override
@@ -233,11 +320,6 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 		return Optional.of(player.tickets().getOrDefault(ticket, 0));
 	}
 
-	@Override
-	public boolean isGameOver() {
-		// TODO
-		return false;
-	}
 
 	private ArrayList<ScotlandYardPlayer> getxPlayers() {
 		return xPlayers;
