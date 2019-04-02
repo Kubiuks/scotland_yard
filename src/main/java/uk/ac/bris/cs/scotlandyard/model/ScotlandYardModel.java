@@ -12,6 +12,7 @@ import static uk.ac.bris.cs.scotlandyard.model.Ticket.*;
 
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import org.checkerframework.checker.nullness.qual.RequiresNonNull;
 import uk.ac.bris.cs.gamekit.graph.Edge;
@@ -35,6 +36,8 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 	private Set<Colour> xWinningPlayers = new HashSet<>();
 	private Set<Colour> xDetectives = new HashSet<>();
 	private ArrayList<Spectator> xSpectators = new ArrayList<>();
+	private boolean mrXwon = false;
+	private boolean detectivesWon = false;
 
 	private void validateRounds(List<Boolean> rounds) {
 		requireNonNull(rounds);
@@ -117,8 +120,7 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 	@Override
 	public void startRotate() {
 		if(isGameOver()) throw new IllegalStateException("game is over");
-		ScotlandYardPlayer player = getxPlayerbyColour(getCurrentPlayer());
-		player.player().makeMove(this, player.location(), getValidMoves(player), this);//needs accept method, which is below
+		nextmove();
 	}
 
 	private Set<Move> getValidMoves (ScotlandYardPlayer player) {
@@ -168,12 +170,18 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 	}
 
 	private void setNextPlayer(){
+
+		if(xCurrentPlayer + 1 == xAllPlayers) {
+			for (Spectator spectator : getSpectators()) {
+				spectator.onRotationComplete(this);
+			}
+		}
 		xCurrentPlayer += 1;
-		if(xCurrentPlayer == xAllPlayers){
-			if(getCurrentRound() == getRounds().size()) isGameOver();
+		if(xCurrentPlayer == xAllPlayers) {
+			if (getCurrentRound() == getRounds().size()) isGameOver();
 			xCurrentPlayer = 0; //when all players made move the round is over so reset the current player to mrX
 		}
-		else startRotate();
+		else nextmove();
 	}
 
 
@@ -188,6 +196,7 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 			public void visit(TicketMove move) {
 				player.removeTicket(move.ticket());
 				player.location(move.destination());
+				notifySpectatorsAboutMove(move);
 				if(player.isDetective()) {
 					getxPlayerbyColour(BLACK).addTicket(move.ticket());
 				}
@@ -226,6 +235,11 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 		move.visit(visitor);
 	}
 
+	private void nextmove(){
+		ScotlandYardPlayer player = getxPlayerbyColour(getCurrentPlayer());
+		player.player().makeMove(this, player.location(), getValidMoves(player), this);//needs accept method, which is below
+	}
+
 	private ArrayList<Integer> getTakenLocations (){
 			ArrayList<Integer> locations = new ArrayList<>();
 			for(ScotlandYardPlayer player : getxPlayers()){
@@ -239,11 +253,15 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 
 	@Override
 	public boolean isGameOver() {
-		boolean winner;
-		if(areDetectivesTicketless() || allDetectivesDontHaveValidMoves() || noRoundsLeft()) xWinningPlayers.add(BLACK);
-		else if(isMrXcaptured() || isMrXcornered() || isMrXStuck()) xWinningPlayers = xDetectives;
-		System.out.println(xWinningPlayers);
-		return !xWinningPlayers.isEmpty();
+		if(areDetectivesTicketless() || allDetectivesDontHaveValidMoves() || noRoundsLeft()){
+			 mrXwon = true;
+			 return true;
+		}
+		else if(isMrXcaptured() || isMrXcorneredOrStuck()){
+			 detectivesWon = true;
+			 return true;
+		}
+		else return false;
 	}
 
 	private boolean isMrXcaptured(){
@@ -274,20 +292,21 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 	}
 
 	private boolean noRoundsLeft() {
-			return false;
-	}
-
-	private boolean isMrXStuck(){
+		if(getCurrentRound() >= getRounds().size()) return true;
 		return false;
 	}
 
-	private boolean isMrXcornered(){
 
-		return false;
+	private boolean isMrXcorneredOrStuck(){
+		return getValidMoves(getxPlayerbyColour(BLACK)).contains(new PassMove(BLACK));
 	}
 
 	@Override
 	public Set<Colour> getWinningPlayers() {
+		if(isGameOver()){
+			if(mrXwon) xWinningPlayers.add(BLACK);
+			if(detectivesWon) xWinningPlayers = xDetectives;
+		}
 		return Collections.unmodifiableSet(xWinningPlayers);
 	}
 
@@ -373,6 +392,12 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 	private void notifySpectatorsAboutRound(){
 		for(Spectator spectator : getSpectators()){
 			spectator.onRoundStarted(this, getCurrentRound());
+		}
+	}
+
+	private void notifySpectatorsAboutMove(Move move){
+		for(Spectator spectator : getSpectators()){
+			spectator.onMoveMade(this, move);
 		}
 	}
 
