@@ -176,7 +176,6 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 				spectator.onRotationComplete(this);
 			}
 		}
-		System.out.println(xCurrentPlayer);
 		xCurrentPlayer += 1;
 		if(xCurrentPlayer == xAllPlayers) {
 			xCurrentPlayer = 0; //when all players made move the round is over so reset the current player to mrX
@@ -218,21 +217,25 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 				int firstDestination = move.firstMove().destination();
 				int finalDestination = move.finalDestination();
 
-				xCurrentRound += 1;
-				notifySpectatorsAboutRound();
-
 				player.removeTicket(move.firstMove().ticket());
 				player.removeTicket(move.secondMove().ticket());
 				player.removeTicket(DOUBLE);
+
+				notifySpectatorsAboutMove(move);
+
+				xCurrentRound += 1;
+				notifySpectatorsAboutRound();
+
 				if(getRounds().get(getCurrentRound() - 1)){//first move is reveal
 						xLastKnownMrXlocation = firstDestination;
 				}
+				notifySpectatorsAboutMove(move.firstMove());
 				if(getRounds().get(getCurrentRound())){//second move is reveal
 						xLastKnownMrXlocation = finalDestination;
-
 				}
 				xCurrentRound += 1;
 				notifySpectatorsAboutRound();
+				notifySpectatorsAboutMove(move.secondMove());
 				player.location(finalDestination);
 			}
 		};
