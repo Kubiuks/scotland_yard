@@ -176,10 +176,13 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 				spectator.onRotationComplete(this);
 			}
 		}
+		System.out.println(xCurrentPlayer);
 		xCurrentPlayer += 1;
 		if(xCurrentPlayer == xAllPlayers) {
-			if (getCurrentRound() == getRounds().size()) isGameOver();
 			xCurrentPlayer = 0; //when all players made move the round is over so reset the current player to mrX
+			if(isGameOver()){
+				notifySpectatorsAboutGameOver();
+			}
 		}
 		else nextmove();
 	}
@@ -189,14 +192,13 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 		MoveVisitor visitor = new MoveVisitor() {
 			@Override
 			public void visit(PassMove move) {
-
+				notifySpectatorsAboutMove(move);
 			}
 
 			@Override
 			public void visit(TicketMove move) {
 				player.removeTicket(move.ticket());
 				player.location(move.destination());
-				notifySpectatorsAboutMove(move);
 				if(player.isDetective()) {
 					getxPlayerbyColour(BLACK).addTicket(move.ticket());
 				}
@@ -208,6 +210,7 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 						xLastKnownMrXlocation = player.location();
 					}
 				}
+				notifySpectatorsAboutMove(move);
 			}
 
 			@Override
@@ -217,6 +220,7 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 
 				xCurrentRound += 1;
 				notifySpectatorsAboutRound();
+
 				player.removeTicket(move.firstMove().ticket());
 				player.removeTicket(move.secondMove().ticket());
 				player.removeTicket(DOUBLE);
@@ -398,6 +402,12 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 	private void notifySpectatorsAboutMove(Move move){
 		for(Spectator spectator : getSpectators()){
 			spectator.onMoveMade(this, move);
+		}
+	}
+
+	private void notifySpectatorsAboutGameOver(){
+		for(Spectator spectator : getSpectators()){
+			spectator.onGameOver(this, getWinningPlayers());
 		}
 	}
 
