@@ -374,7 +374,6 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 		return isRotationCompleted;
 	}
 
-	//added this method
 	private void setNextMove(boolean isRotationCompleted){
 
 		if (isGameOver()){
@@ -611,8 +610,8 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 	private void notifySpectatorsAboutMoveMade(Move move, Ticket ticket1, int destination1, Ticket ticket2, int destination2) {
 		for (Spectator spectator : xSpectators) {
 			spectator.onMoveMade(
-							this,
-							new DoubleMove(move.colour(), new TicketMove(move.colour(), ticket1, destination1),
+							this, new DoubleMove(move.colour(),
+							new TicketMove(move.colour(), ticket1, destination1),
 							new TicketMove(move.colour(), ticket2, destination2))
 			);
 		}
