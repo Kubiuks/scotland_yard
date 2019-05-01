@@ -210,7 +210,7 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 		//Taken Reveal Round and Location logic out to corresponding methods
 		//Added quite a lot of logic for setting a new player and setting next move to accommodate a couple of tests
 
-		MoveVisitor visitor = new MoveVisitor() {
+		move.visit( new MoveVisitor() {
 			@Override
 			public void visit(PassMove move) {
 
@@ -354,8 +354,7 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 				setNextMove(isRotationCompleted);
 
 			}
-		};
-		move.visit(visitor);
+		});
 	}
 
 
