@@ -76,6 +76,7 @@ public class SimpleAI implements PlayerFactory {
 			System.out.println(max);
 			System.out.println(index);
 
+
 			return (Move)movesArray[index];
 		}
 

@@ -51,7 +51,9 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 		this.xGraph = graph;
 	}
 
-	private ArrayList<PlayerConfiguration> configurePlayers(PlayerConfiguration mrX, PlayerConfiguration firstDetective, PlayerConfiguration... restOfTheDetectives) {
+	private ArrayList<PlayerConfiguration> configurePlayers(PlayerConfiguration mrX,
+															PlayerConfiguration firstDetective,
+															PlayerConfiguration... restOfTheDetectives) {
 		if (mrX.colour != BLACK)
 			throw new IllegalArgumentException("MrX should be Black");
 
@@ -221,12 +223,12 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 				setNextMove(isRotationCompleted);
 			}
 
-			//TODO: REMEMBER this logic!
 			// 1. remove ticket
 			// 2. change location to destination
 			// 3. increment player
 			// 4. (notify round started) + notify move made
 			// 5. (notify Game Over) or (notify rotation complete or set next move)
+
 			@Override
 			public void visit(TicketMove move) {
 
@@ -259,7 +261,6 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 
 			}
 
-			//TODO: REMEMBER this logic!
 			// 1. increment player
 			// 2. remove Double ticket
 			// 3. notify Double move made
@@ -268,14 +269,10 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 			// 6. increment round and notify about round started
 			// 7. notify Move 1 made
 			// 8. change location to destination 2
-			// 5. remove Ticket 2
-			// 6. increment round and notify about round started
-			// 7. notify Move 2 made
-			// 8. (notify Game Over) or (notify rotation complete or set next move)
-
-
-
-
+			// 9. remove Ticket 2
+			// 10. increment round and notify about round started
+			// 11. notify Move 2 made
+			// 12. (notify Game Over) or (notify rotation complete or set next move)
 
 			@Override
 			public void visit(DoubleMove move) {
@@ -514,7 +511,6 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 		} else return Optional.of(player.location());
 	}
 
-	//added this method
 	private boolean isRoundReveal(int roundToCheck) {
 
 		if (roundToCheck - 1 < 0) return false;
@@ -591,7 +587,6 @@ public class ScotlandYardModel implements ScotlandYardGame, Consumer<Move> {
 		}
 	}
 
-	//TODO: added/changed these notifySpectatorsAboutMoveMade methods
 	//Overloaded for Pass move
 	private void notifySpectatorsAboutMoveMade(Move move) {
 		for (Spectator spectator : xSpectators) {
