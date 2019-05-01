@@ -32,7 +32,7 @@ public class SimpleAI implements PlayerFactory {
 
 
 		private Integer score(ScotlandYardView view, Move move1){
-			int score = 0;
+			Integer score = 0;
 			if(move1 instanceof TicketMove) {
 				TicketMove move = (TicketMove) move1;
 				Integer destination = move.destination();
@@ -53,31 +53,22 @@ public class SimpleAI implements PlayerFactory {
 		}
 
 		private Move bestFromMoves(ScotlandYardView view, Set<Move> moves){
-			ArrayList<Integer> scores = new ArrayList<>();
+			HashMap<Move, Integer> scores = new HashMap<>();
 			for(Move move : moves){
-				scores.add(score(view, move));
+				scores.put(move, score(view, move));
 			}
-			Object[] movesArray = moves.toArray();
-			Integer max = Collections.max(scores);
-			int[] myArray = new int[scores.size()];
-			Iterator<Integer> iterator = scores.iterator();
-			for (int i = 0; i < myArray.length; i++) {
-				myArray[i] = iterator.next().intValue();
-			}
-			int index = 0;
-			for(int n=0; n < movesArray.length; n++){
-				if(myArray[n] == max){
-					index = n;
-					break;
+			Integer max = Collections.max(scores.values());
+			Move bestMove = null;
+			for (Map.Entry<Move, Integer> entry : scores.entrySet()){
+				if (entry.getValue()==max) {
+					bestMove = entry.getKey();
+
 				}
 			}
-			System.out.println(movesArray);
-			System.out.println(scores);
 			System.out.println(max);
-			System.out.println(index);
+			System.out.println(scores);
 
-
-			return (Move)movesArray[index];
+			return bestMove;
 		}
 
 
